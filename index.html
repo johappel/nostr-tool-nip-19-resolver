@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIP-19 naddr Resolver</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --accent:   #7c3aed;
+      --accent-h: #9d5af5;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --ok:       #3fb950;
+      --err:      #f85149;
+      --key:      #79c0ff;
+      --str:      #a5d6ff;
+      --num:      #f2cc60;
+      --bool:     #ff7b72;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: .4rem;
+      font-size: .9rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 780px;
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: .75rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: .85rem;
+      padding: .65rem 1rem;
+      transition: border-color .2s;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+    input[type="text"]::placeholder {
+      color: var(--muted);
+      opacity: .6;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 600;
+      padding: .65rem 1.4rem;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+    button:hover  { background: var(--accent-h); }
+    button:active { transform: scale(.97); }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    #status {
+      font-size: .82rem;
+      margin-bottom: .75rem;
+      min-height: 1.2em;
+    }
+    #status.ok  { color: var(--ok); }
+    #status.err { color: var(--err); }
+
+    #output {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: .85rem;
+      line-height: 1.6;
+      min-height: 200px;
+      padding: 1rem;
+      resize: vertical;
+      width: 100%;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    /* Syntax-Highlighting im <pre>-Bereich */
+    .j-key   { color: var(--key);  }
+    .j-str   { color: var(--str);  }
+    .j-num   { color: var(--num);  }
+    .j-bool  { color: var(--bool); }
+    .j-null  { color: var(--bool); }
+    .j-punc  { color: var(--muted);}
+
+    .examples {
+      margin-top: 1.5rem;
+    }
+    .examples p {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: .4rem;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+    .pill {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .72rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      padding: .25rem .75rem;
+      transition: border-color .2s, color .2s;
+      word-break: break-all;
+    }
+    .pill:hover { border-color: var(--accent); color: var(--text); }
+
+    footer {
+      margin-top: 3rem;
+      font-size: .75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    footer a { color: var(--muted); text-underline-offset: 3px; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>NIP-19 naddr Resolver</h1>
+  <p>Zerlegt eine Nostr <code style="color:#a78bfa">naddr</code> in ihre TLV-Bestandteile</p>
+</header>
+
+<div class="card">
+  <label for="naddrInput">naddr eingeben</label>
+  <div class="input-row">
+    <input
+      type="text"
+      id="naddrInput"
+      placeholder="naddr1…"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    />
+    <button id="decodeBtn">Dekodieren</button>
+  </div>
+
+  <hr class="divider" />
+
+  <div id="status"></div>
+  <pre id="output" role="textbox" aria-label="Dekodiertes JSON"></pre>
+
+  <div class="examples">
+    <p>Beispiele zum Ausprobieren:</p>
+    <div class="pill-row" id="examples"></div>
+  </div>
+</div>
+
+<footer>
+  Spezifikation: <a href="https://github.com/nostr-protocol/nostr/blob/master/nips/19.md" target="_blank" rel="noopener">NIP-19</a>
+  &nbsp;·&nbsp;
+  Quellcode: <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+</footer>
+
+<script>
+// ─── Bech32-Decoder (ohne externe Abhängigkeiten) ──────────────────────────
+
+const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const CHARMAP  = Object.fromEntries([...CHARSET].map((c, i) => [c, i]));
+
+function bech32Polymod(values) {
+  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const v of values) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let i = 0; i < 5; i++) if ((top >> i) & 1) chk ^= GEN[i];
+  }
+  return chk;
+}
+
+function bech32HrpExpand(hrp) {
+  const out = [];
+  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) >> 5);
+  out.push(0);
+  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) & 31);
+  return out;
+}
+
+/**
+ * Dekodiert eine bech32-kodierte Zeichenkette.
+ * @returns {{ hrp: string, data: Uint8Array }} 5-Bit-Gruppen als Rohdaten
+ */
+function bech32Decode(bechStr) {
+  const str = bechStr.toLowerCase();
+  if (str.length > 5000) throw new Error('Zeichenkette zu lang');
+
+  const sepPos = str.lastIndexOf('1');
+  if (sepPos < 1) throw new Error('Kein Separator "1" gefunden');
+  const hrp  = str.slice(0, sepPos);
+  const data = str.slice(sepPos + 1);
+  if (data.length < 6) throw new Error('Datenteil zu kurz');
+
+  const values = [];
+  for (const ch of data) {
+    if (!(ch in CHARMAP)) throw new Error(`Ungültiges Zeichen: "${ch}"`);
+    values.push(CHARMAP[ch]);
+  }
+
+  if (bech32Polymod([...bech32HrpExpand(hrp), ...values]) !== 1)
+    throw new Error('Prüfsumme ungültig');
+
+  return { hrp, data5: new Uint8Array(values.slice(0, -6)) };
+}
+
+/**
+ * Konvertiert 5-Bit-Gruppen in 8-Bit-Bytes.
+ */
+function convertBits(data, fromBits, toBits, pad = true) {
+  let acc = 0, bits = 0;
+  const out = [];
+  const maxv = (1 << toBits) - 1;
+  for (const value of data) {
+    acc = (acc << fromBits) | value;
+    bits += fromBits;
+    while (bits >= toBits) {
+      bits -= toBits;
+      out.push((acc >> bits) & maxv);
+    }
+  }
+  if (pad && bits > 0) out.push((acc << (toBits - bits)) & maxv);
+  return new Uint8Array(out);
+}
+
+// ─── TLV-Parser ────────────────────────────────────────────────────────────
+
+function parseTLV(bytes) {
+  const tlv = {};
+  let i = 0;
+  while (i < bytes.length) {
+    const type   = bytes[i++];
+    const length = bytes[i++];
+    const value  = bytes.slice(i, i + length);
+    i += length;
+    if (!tlv[type]) tlv[type] = [];
+    tlv[type].push(value);
+  }
+  return tlv;
+}
+
+function bytesToHex(bytes) {
+  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function bytesToUtf8(bytes) {
+  return new TextDecoder().decode(bytes);
+}
+
+/**
+ * Dekodiert eine naddr-Zeichenkette und gibt ein strukturiertes Objekt zurück.
+ */
+function decodeNaddr(str) {
+  const { hrp, data5 } = bech32Decode(str.trim());
+
+  if (hrp !== 'naddr')
+    throw new Error(`Unerwartetes Präfix "${hrp}". Erwartet: "naddr"`);
+
+  const bytes = convertBits(data5, 5, 8, false);
+  const tlv   = parseTLV(bytes);
+
+  // Typ 0 – identifier (d-tag)
+  const identifier = tlv[0]?.length ? bytesToUtf8(tlv[0][0]) : '';
+
+  // Typ 1 – relays (optional, kann mehrfach vorkommen)
+  const relays = (tlv[1] ?? []).map(v => bytesToUtf8(v));
+
+  // Typ 2 – pubkey (32 Byte)
+  if (!tlv[2]?.length) throw new Error('Pflichtfeld "author" (Typ 2) fehlt');
+  const pubkey = bytesToHex(tlv[2][0]);
+
+  // Typ 3 – kind (32-Bit Big-Endian)
+  if (!tlv[3]?.length) throw new Error('Pflichtfeld "kind" (Typ 3) fehlt');
+  const kindBytes = tlv[3][0];
+  const kind = (kindBytes[0] << 24) | (kindBytes[1] << 16) |
+               (kindBytes[2] << 8)  |  kindBytes[3];
+
+  return {
+    type: 'naddr',
+    data: {
+      identifier,
+      pubkey,
+      kind,
+      relays: relays.length > 0 ? relays : undefined,
+    },
+    raw: {
+      hrp,
+      tlv_types_present: Object.keys(tlv).map(Number).sort((a, b) => a - b),
+    },
+  };
+}
+
+// ─── Syntax-Highlighting ───────────────────────────────────────────────────
+/**
+ * Erzeugt syntax-hervorgehobenes HTML aus einem JSON-String.
+ * Das Escaping erfolgt innerhalb dieser Funktion pro Match.
+ */
+function highlightJson(json) {
+  // Zeichen, die als HTML-Entitäten kodiert werden müssen, werden zuerst
+  // global ersetzt, bevor die Highlighting-Spans eingebaut werden.
+  const safe = json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return safe.replace(
+    /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}\[\],:])/g,
+    match => {
+      if (match.startsWith('"')) {
+        if (match.endsWith(':')) return `<span class="j-key">${match}</span>`;
+        return `<span class="j-str">${match}</span>`;
+      }
+      if (match === 'true' || match === 'false') return `<span class="j-bool">${match}</span>`;
+      if (match === 'null')   return `<span class="j-null">${match}</span>`;
+      if ('{}[]'.includes(match)) return `<span class="j-punc">${match}</span>`;
+      if (match === ',')      return `<span class="j-punc">${match}</span>`;
+      return `<span class="j-num">${match}</span>`;
+    }
+  );
+}
+
+// ─── UI-Logik ──────────────────────────────────────────────────────────────
+
+const input     = document.getElementById('naddrInput');
+const btn       = document.getElementById('decodeBtn');
+const output    = document.getElementById('output');
+const status    = document.getElementById('status');
+const exRow     = document.getElementById('examples');
+
+function decode() {
+  const val = input.value.trim();
+  if (!val) {
+    status.textContent = '';
+    output.innerHTML   = '';
+    return;
+  }
+  try {
+    const result = decodeNaddr(val);
+    const json   = JSON.stringify(result, null, 2);
+    output.innerHTML   = highlightJson(json);
+    status.textContent = '✓ Erfolgreich dekodiert';
+    status.className   = 'ok';
+  } catch (e) {
+    output.innerHTML   = '';
+    status.textContent = '✗ ' + e.message;
+    status.className   = 'err';
+  }
+}
+
+btn.addEventListener('click', decode);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') decode(); });
+input.addEventListener('input', () => {
+  if (input.value.trim().length > 10) decode();
+});
+
+// Beispiel-naddrn (bekannte Nostr-Artikel / Long-form-Events)
+const EXAMPLES = [
+  {
+    label: 'Beispiel 1',
+    naddr: 'naddr1qqxnzdesxqmnxvpexqunzvpcqyt8wumn8ghj7un9d3shjtnyv9kh2uewd9hsygyl47qa465zm22e6jk9pmunlq5nvtaqdkpf7t22yxldq6qz9jvfkuqpsgqqq0jesyq8ygl',
+  },
+  {
+    label: 'Beispiel 2',
+    naddr: 'naddr1qq9xjtnswf5kueeqzyrx2w3nq73ylgg5tl6xm8q7aqpyxkuynf9txy9n6w3e0ycm42sqcyqqq823c7wyd0z',
+  },
+];
+
+EXAMPLES.forEach(ex => {
+  const pill = document.createElement('button');
+  pill.className   = 'pill';
+  pill.textContent = ex.label + ' – ' + ex.naddr.slice(0, 20) + '…';
+  pill.title       = ex.naddr;
+  pill.addEventListener('click', () => {
+    input.value = ex.naddr;
+    decode();
+  });
+  exRow.appendChild(pill);
+});
+</script>
+</body>
+</html>
