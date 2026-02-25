@@ -30,4 +30,6 @@ Unterstützt werden ausschließlich `naddr`-Zeichenketten; andere NIP-19-Typen w
 
 ## Lizenz
 
-MIT
+[CC0 1.0 Universal](LICENSE) – dieses Werk ist gemeinfrei (Public Domain).
+
+[![CC0](https://licensebuttons.net/p/zero/1.0/88x31.png)](https://creativecommons.org/publicdomain/zero/1.0/)
