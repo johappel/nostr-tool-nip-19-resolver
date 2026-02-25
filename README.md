@@ -1,6 +1,6 @@
 # NIP-19 naddr Resolver
 
-Einfache statische Seite zum Dekodieren von Nostr `naddr`-Zeichenketten gemäß [NIP-19](https://github.com/nostr-protocol/nostr/blob/master/nips/19.md).
+Einfache statische Seite zum Dekodieren von Nostr `naddr`-Zeichenketten gemäß [NIP-19](https://github.com/nostr-protocol/nostr/blob/master/nips/19.md). 
 
 ## Features
 
